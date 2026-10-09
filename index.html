@@ -22,7 +22,7 @@
   <!-- MAIN CARD CONTAINER -->
   <div class="w-full max-w-md bg-slate-900/95 backdrop-blur-2xl rounded-3xl shadow-2xl overflow-hidden border border-slate-700/60 min-h-[92vh] max-h-[96vh] flex flex-col justify-between relative z-10">
 
-    <!-- LOGIN SCREEN -->
+    <!-- 1. LOGIN SCREEN -->
     <div id="screen-login" class="p-8 flex flex-col justify-between flex-grow">
       <div class="text-center pt-4">
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white shadow-xl shadow-blue-500/30 mb-4 border border-white/20">
@@ -56,11 +56,11 @@
           <i class="fa-solid fa-cloud text-slate-500"></i>
           <span>Google Sheet Cloud Sync Active</span>
         </div>
-        <p class="text-[11px] text-slate-500 mt-0.5">Sabhi mobiles par live sync hota hai</p>
+        <p class="text-[11px] text-slate-500 mt-0.5">Sabhi mobiles par live data sync hota hai</p>
       </div>
     </div>
 
-    <!-- WORKSPACE -->
+    <!-- 2. WORKSPACE -->
     <div id="screen-app" class="hidden flex flex-col h-full flex-grow bg-slate-900 text-slate-100 overflow-hidden">
       
       <!-- Top Sticky Header -->
@@ -75,7 +75,7 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <button onclick="fetchSheetData()" title="Reload Data" class="p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs transition">
+          <button onclick="fetchSheetData(true)" title="Reload Data" class="p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs transition">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
           <button onclick="handleLogout()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold shadow transition flex items-center space-x-1 text-white">
@@ -189,9 +189,7 @@
   </div>
 
   <script>
-    // ========================================================
-    // APNI GOOGLE APPS SCRIPT WEB APP URL YAHAN PASTE KAREIN
-    // ========================================================
+    // AAPKI GOOGLE SCRIPT URL DIRECT CONNECTED HAI
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxeyAtH5IBnkPfDMdzyzEaSqJYbBNk6_9BfpHmnzsA64YVpLiCwJKXmzhQYuZFn8PQj/exec";
 
     const MASTER_ADMIN_PIN = '2619';
@@ -199,8 +197,21 @@
     let currentUser = null;
     let data = [];
 
-    async function fetchSheetData() {
-      if (SCRIPT_URL.includes("PASTE_YOUR")) return;
+    // Draft storage to prevent text loss while typing
+    const crmDrafts = {};
+    const fieldDrafts = {};
+
+    function isUserTyping() {
+      const active = document.activeElement;
+      if (!active) return false;
+      const tag = active.tagName.toLowerCase();
+      return tag === 'input' || tag === 'textarea';
+    }
+
+    async function fetchSheetData(force = false) {
+      // Agar user type kar raha hai aur force refresh nahi hai to screen redraw na karein
+      if (!force && isUserTyping()) return;
+
       try {
         const res = await fetch(`${SCRIPT_URL}?action=getData`);
         if (res.ok) {
@@ -215,10 +226,6 @@
     }
 
     async function postSheetData(payload) {
-      if (SCRIPT_URL.includes("PASTE_YOUR")) {
-        alert("Pehle Google Script URL code me dalein!");
-        return false;
-      }
       try {
         await fetch(SCRIPT_URL, {
           method: "POST",
@@ -238,7 +245,7 @@
       const btn = document.getElementById('btn-login');
       btn.innerText = 'Connecting...';
 
-      await fetchSheetData();
+      await fetchSheetData(true);
       btn.innerText = 'Login Karein';
 
       if (!USERS[pin]) {
@@ -355,11 +362,17 @@
       btn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i><span>CRM Team Ko Bhejo</span>';
       btn.disabled = false;
 
-      alert('Alert successfully Google Sheet me bhej diya gaya! Sabhi phones par live dikhega.');
-      fetchSheetData();
+      alert('Alert successfully bhej diya gaya!');
+      fetchSheetData(true);
     }
 
     function showCrmList() {
+      // Capture live inputs before rendering so typing is never lost
+      data.forEach(item => {
+        const inp = document.getElementById(`note-fb-${item.id}`);
+        if (inp) crmDrafts[item.id] = inp.value;
+      });
+
       const box = document.getElementById('crm-list');
       box.innerHTML = data.length === 0 ? '<p class="text-xs text-slate-400 p-4 text-center">Koi active ticket nahi hai.</p>' : '';
       const fieldBoys = Object.values(USERS).filter(u => u.role === 'field');
@@ -367,8 +380,11 @@
       data.forEach(item => {
         let options = '<option value="">-- Field Boy Select Karein --</option>';
         fieldBoys.forEach(fb => {
-          options += `<option value="${fb.name}" ${item.assignedTo === fb.name ? 'selected' : ''}>${fb.name}</option>`;
+          const isSelected = item.assignedTo === fb.name ? 'selected' : '';
+          options += `<option value="${fb.name}" ${isSelected}>${fb.name}</option>`;
         });
+
+        const currentVal = crmDrafts[item.id] !== undefined ? crmDrafts[item.id] : (item.instruction || '');
 
         box.innerHTML += `
           <div class="border border-slate-700 rounded-2xl p-4 text-xs bg-slate-800/80 shadow-sm space-y-3">
@@ -390,7 +406,7 @@
               </div>
               <div>
                 <label class="block font-semibold text-slate-300 mb-1">Instruction / Note:</label>
-                <input id="note-fb-${item.id}" type="text" placeholder="Field boy ke liye instruction..." value="${item.instruction || ''}" class="w-full bg-slate-900 border border-slate-700 p-2 rounded-xl text-white outline-none">
+                <input id="note-fb-${item.id}" type="text" oninput="crmDrafts['${item.id}'] = this.value" placeholder="Field boy ke liye instruction..." value="${currentVal}" class="w-full bg-slate-900 border border-slate-700 p-2 rounded-xl text-white outline-none">
               </div>
               <button onclick="commitAssignment('${item.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs transition shadow flex items-center justify-center space-x-1.5 mt-2">
                 <i class="fa-solid fa-check"></i>
@@ -403,78 +419,3 @@
     }
 
     async function commitAssignment(id) {
-      const selectedBoy = document.getElementById(`select-fb-${id}`).value;
-      const note = document.getElementById(`note-fb-${id}`).value.trim();
-
-      if (!selectedBoy) {
-        alert('Kripya pehle dropdown se ek Field Boy select karein.');
-        return;
-      }
-
-      await postSheetData({ action: "assignTicket", id, assignedTo: selectedBoy, instruction: note });
-      alert(`Party successfully ${selectedBoy} ko assign ho gayi!`);
-      fetchSheetData();
-    }
-
-    function showFieldList() {
-      const box = document.getElementById('field-list');
-      const myTasks = data.filter(x => x.assignedTo === currentUser.name);
-      box.innerHTML = myTasks.length === 0 ? '<p class="text-xs text-slate-400 p-4 text-center">Aapko koi party assign nahi hai.</p>' : '';
-      myTasks.forEach(item => {
-        box.innerHTML += `
-          <div class="border border-slate-700 rounded-2xl p-3.5 text-xs bg-slate-800/80 shadow-sm space-y-2.5">
-            <div class="flex justify-between font-bold text-sm">
-              <span class="text-white">${item.party}</span>
-              <span class="text-blue-400">📍 ${item.area}</span>
-            </div>
-            <p class="text-rose-300 bg-rose-950/40 border border-rose-800/50 p-2 rounded-xl"><b>Problem:</b> ${item.reason}</p>
-            ${item.instruction ? `<p class="text-blue-300 bg-blue-950/40 border border-blue-800/50 p-2 rounded-xl font-medium"><b>CRM Note:</b> ${item.instruction}</p>` : ''}
-            <div>
-              <label class="block font-semibold mb-1 text-slate-300">Dukaan par kya baat hui?:</label>
-              <textarea id="feedback-${item.id}" placeholder="Meeting update likhein..." class="w-full bg-slate-900 border border-slate-700 p-2 rounded-xl text-white outline-none" rows="2">${item.feedback || ''}</textarea>
-            </div>
-            <button onclick="finishTask('${item.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold transition">
-              ${item.status === 'Done' ? '✓ Completed' : 'Save & Mark as Done'}
-            </button>
-          </div>
-        `;
-      });
-    }
-
-    async function finishTask(id) {
-      const fb = document.getElementById(`feedback-${id}`).value.trim();
-      await postSheetData({ action: "finishTicket", id, feedback: fb });
-      alert('Visit update Google Sheet me save ho gayi!');
-      fetchSheetData();
-    }
-
-    function showAdminList() {
-      document.getElementById('stat-total').innerText = data.length;
-      document.getElementById('stat-done').innerText = data.filter(x => x.status === 'Done').length;
-      document.getElementById('stat-pending').innerText = data.filter(x => x.status !== 'Done').length;
-
-      const box = document.getElementById('admin-list');
-      box.innerHTML = data.length === 0 ? '<p class="text-xs text-slate-400 p-4 text-center">Koi trail nahi hai.</p>' : '';
-      data.forEach(item => {
-        box.innerHTML += `
-          <div class="border border-slate-700 rounded-2xl p-3.5 text-xs bg-slate-800/80 shadow-sm space-y-2">
-            <div class="flex justify-between font-bold text-sm">
-              <span class="text-white">${item.party} (${item.area})</span>
-              <span class="${item.status === 'Done' ? 'text-emerald-400 bg-emerald-950/60 border border-emerald-800' : 'text-amber-400 bg-amber-950/60 border border-amber-800'} px-2 py-0.5 rounded-full text-[11px] font-bold">${item.status}</span>
-            </div>
-            <div class="pl-2.5 border-l-2 border-blue-500 text-slate-300 space-y-1">
-              <p>1. <b>Operator:</b> ${item.opName} flagged (Reason: ${item.reason})</p>
-              <p>2. <b>CRM:</b> Assigned to ${item.assignedTo || 'Pending'} ${item.instruction ? `(Note: "${item.instruction}")` : ''}</p>
-              <p>3. <b>Field Boy Update:</b> ${item.feedback || 'Visit pending'}</p>
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    // Auto sync from Google Sheet every 10 seconds
-    setInterval(fetchSheetData, 10000);
-    fetchSheetData();
-  </script>
-</body>
-</html>
