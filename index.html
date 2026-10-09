@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Party Follow-Up Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+  <div class="max-w-md mx-auto bg-white min-h-screen shadow flex flex-col justify-between">
+    
+    <!-- LOGIN SCREEN -->
+    <div id="screen-login" class="p-6 flex flex-col justify-center min-h-screen space-y-6">
+      <div class="text-center">
+        <h1 class="text-2xl font-bold text-blue-600">Follow-Up Portal</h1>
+        <p class="text-xs text-gray-500 mt-1">Apna 4-digit PIN enter karke login karein</p>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Enter PIN</label>
+          <input id="login-pin" type="password" maxlength="4" placeholder="••••" class="w-full border p-3 rounded text-center text-xl font-bold tracking-widest">
+        </div>
+        <button onclick="handleLogin()" class="w-full bg-blue-600 text-white py-3 rounded font-bold text-sm shadow">Login Karein</button>
+      </div>
+
+      <div class="bg-blue-50 p-3 rounded text-xs text-blue-800 text-center">
+        <p>Master Admin PIN: <b>2619</b></p>
+        <p class="text-[11px] text-gray-500 mt-0.5">Live Sync: Mobile aur Computer dono par ek sath chalega.</p>
+      </div>
+    </div>
+
+    <!-- APP SCREEN -->
+    <div id="screen-app" class="hidden flex flex-col min-h-screen justify-between pb-16">
+      <div>
+        <header class="bg-blue-600 text-white p-3 flex justify-between items-center">
+          <div>
+            <h2 class="text-sm font-bold" id="user-display-name">User Name</h2>
+            <p class="text-[10px] text-blue-100" id="user-display-role">Role</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="loadAllCloudData()" class="text-xs bg-blue-500 px-2 py-1 rounded">🔄 Refresh</button>
+            <button onclick="handleLogout()" class="text-xs bg-blue-700 px-2 py-1 rounded">Logout</button>
+          </div>
+        </header>
+
+        <!-- VIEW: OPERATOR -->
+        <div id="view-op" class="p-4 space-y-4 hidden">
+          <div class="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded text-xs">
+            Order drop ya band hone wali party ki details dalein:
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Party Ka Naam *</label>
+            <input id="op-party" type="text" placeholder="Dukaan / Firm ka naam" class="w-full border p-2 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Area / Market *</label>
+            <input id="op-area" type="text" placeholder="e.g. Kalupur Market" class="w-full border p-2 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Kyu order nahi aa raha? (Reason) *</label>
+            <textarea id="op-reason" rows="2" placeholder="e.g. Rate high bol rahe hain, payment issue hai" class="w-full border p-2 rounded text-sm"></textarea>
+          </div>
+          <button onclick="submitTicket()" id="btn-submit-op" class="w-full bg-blue-600 text-white py-2.5 rounded font-bold text-sm shadow">CRM Team Ko Bhejo</button>
+        </div>
+
+        <!-- VIEW: CRM MANAGER -->
+        <div id="view-crm" class="p-4 space-y-3 hidden">
+          <h2 class="text-sm font-bold text-gray-800">Parties Awaiting Assignment</h2>
+          <div id="crm-list" class="space-y-3"></div>
+        </div>
+
+        <!-- VIEW: FIELD EXECUTIVE -->
+        <div id="view-field" class="p-4 space-y-3 hidden">
+          <h2 class="text-sm font-bold text-gray-800">Aapko Assigned Parties</h2>
+          <div id="field-list" class="space-y-3"></div>
+        </div>
+
+        <!-- VIEW: MASTER ADMIN -->
+        <div id="view-admin" class="p-4 space-y-4 hidden">
+          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+            <div class="bg-gray-100 p-2 rounded border"><span class="font-bold text-base" id="stat-total">0</span><br>Total</div>
+            <div class="bg-orange-50 p-2 rounded border text-orange-700"><span class="font-bold text-base" id="stat-pending">0</span><br>Pending</div>
+            <div class="bg-green-50 p-2 rounded border text-green-700"><span class="font-bold text-base" id="stat-done">0</span><br>Done</div>
+          </div>
+
+          <!-- Add Team Member -->
+          <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-xs space-y-2">
+            <h3 class="font-bold text-blue-900 text-sm">➕ Naya Member Add Karein</h3>
+            <div>
+              <label class="block font-semibold mb-0.5">Staff Ka Naam *</label>
+              <input id="new-user-name" type="text" placeholder="e.g. Rajesh Sharma" class="w-full border p-1.5 rounded bg-white">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold mb-0.5">Role *</label>
+                <select id="new-user-role" class="w-full border p-1.5 rounded bg-white">
+                  <option value="op">Operator</option>
+                  <option value="field">Field Boy</option>
+                  <option value="crm">CRM Manager</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-semibold mb-0.5">4-Digit PIN *</label>
+                <input id="new-user-pin" type="password" maxlength="4" placeholder="e.g. 4567" class="w-full border p-1.5 rounded bg-white text-center">
+              </div>
+            </div>
+            <button onclick="addNewMember()" class="w-full bg-blue-600 text-white py-1.5 rounded font-bold hover:bg-blue-700">Team Me Add Karein</button>
+          </div>
+
+          <!-- Team List -->
+          <div>
+            <h3 class="font-bold text-gray-800 text-xs mb-1">Active Team & PINs:</h3>
+            <div id="team-members-list" class="space-y-1.5 text-xs"></div>
+          </div>
+
+          <hr class="border-gray-200">
+
+          <!-- Follow-up Trail -->
+          <div>
+            <h3 class="font-bold text-gray-800 text-xs mb-2">Customer Follow-up Trail:</h3>
+            <div id="admin-list" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // LIVE CLOUD STORAGE BIN (Shared between Phone & PC)
+    const CLOUD_URL = 'https://api.jsonbin.io/v3/b/66feb3f9ad19ca34f8b28cf9'; // Public sync endpoint
+    const MASTER_ADMIN_PIN = '2619';
+
+    let USERS = {
+      '2619': { name: 'Owner (Master Admin)', role: 'admin' }
+    };
+    let currentUser = null;
+    let data = [];
+
+    // Local storage fallback + Cloud Sync
+    async function loadAllCloudData() {
+      try {
+        const cachedUsers = localStorage.getItem('team_users_v2');
+        if (cachedUsers) USERS = JSON.parse(cachedUsers);
+
+        const cachedTickets = localStorage.getItem('party_tickets_v2');
+        if (cachedTickets) data = JSON.parse(cachedTickets);
+
+        // Fetch from shared cloud memory
+        const res = await fetch('https://kvdb.io/S3Vz8N2eG8gCq8J2sL8Nq9/sharda_followup_data');
+        if (res.ok) {
+          const cloudPayload = await res.json();
+          if (cloudPayload.users) USERS = { ...USERS, ...cloudPayload.users };
+          if (cloudPayload.tickets) data = cloudPayload.tickets;
+          localStorage.setItem('team_users_v2', JSON.stringify(USERS));
+          localStorage.setItem('party_tickets_v2', JSON.stringify(data));
+        }
+      } catch (e) {
+        console.log('Using local cached data', e);
+      }
+      refreshCurrentView();
+    }
+
+    async function syncToCloud() {
+      localStorage.setItem('team_users_v2', JSON.stringify(USERS));
+      localStorage.setItem('party_tickets_v2', JSON.stringify(data));
+
+      try {
+        await fetch('https://kvdb.io/S3Vz8N2eG8gCq8J2sL8Nq9/sharda_followup_data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ users: USERS, tickets: data })
+        });
+      } catch (err) {
+        console.error('Cloud sync error:', err);
+      }
+    }
+
+    async function handleLogin() {
+      const pin = document.getElementById('login-pin').value.trim();
+      await loadAllCloudData();
+
+      if (!USERS[pin]) {
+        alert('Galat PIN! Kripya sahi PIN enter karein.');
+        return;
+      }
+      currentUser = USERS[pin];
+      document.getElementById('screen-login').classList.add('hidden');
+      document.getElementById('screen-app').classList.remove('hidden');
+
+      document.getElementById('user-display-name').innerText = currentUser.name;
+      document.getElementById('user-display-role').innerText = currentUser.role.toUpperCase();
+
+      ['op', 'crm', 'field', 'admin'].forEach(r => document.getElementById('view-' + r).classList.add('hidden'));
+
+      if (currentUser.role === 'op') document.getElementById('view-op').classList.remove('hidden');
+      if (currentUser.role === 'crm') document.getElementById('view-crm').classList.remove('hidden');
+      if (currentUser.role === 'field') document.getElementById('view-field').classList.remove('hidden');
+      if (currentUser.role === 'admin') document.getElementById('view-admin').classList.remove('hidden');
+
+      refreshCurrentView();
+    }
+
+    function refreshCurrentView() {
+      if (!currentUser) return;
+      if (currentUser.role === 'crm') showCrmList();
+      if (currentUser.role === 'field') showFieldList();
+      if (currentUser.role === 'admin') {
+        renderTeamList();
+        showAdminList();
+      }
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      document.getElementById('login-pin').value = '';
+      document.getElementById('screen-app').classList.add('hidden');
+      document.getElementById('screen-login').classList.remove('hidden');
+    }
+
+    async function addNewMember() {
+      const name = document.getElementById('new-user-name').value.trim();
+      const role = document.getElementById('new-user-role').value;
+      const pin = document.getElementById('new-user-pin').value.trim();
+
+      if (!name || pin.length !== 4) {
+        alert('Kripya pura naam aur 4-digit PIN dalein');
+        return;
+      }
+      if (USERS[pin]) {
+        alert('Yeh PIN pehle se used hai. Doosra PIN chunein.');
+        return;
+      }
+
+      USERS[pin] = { name, role };
+      await syncToCloud();
+
+      document.getElementById('new-user-name').value = '';
+      document.getElementById('new-user-pin').value = '';
+      renderTeamList();
+      alert(`${name} ko add kar diya gaya! PIN: ${pin}`);
+    }
+
+    async function removeMember(pin) {
+      if (pin === MASTER_ADMIN_PIN) return;
+      if (confirm(`Remove ${USERS[pin].name}?`)) {
+        delete USERS[pin];
+        await syncToCloud();
+        renderTeamList();
+      }
+    }
+
+    function renderTeamList() {
+      const box = document.getElementById('team-members-list');
+      box.innerHTML = '';
+      for (const pin in USERS) {
+        const u = USERS[pin];
+        const roleBadge = u.role === 'op' ? 'Operator' : (u.role === 'field' ? 'Field' : (u.role === 'crm' ? 'CRM' : 'Admin'));
+        box.innerHTML += `
+          <div class="flex justify-between items-center p-2 bg-gray-50 border rounded">
+            <div>
+              <span class="font-bold text-gray-800">${u.name}</span>
+              <span class="text-[10px] bg-gray-200 px-1.5 py-0.5 rounded ml-1">${roleBadge}</span>
+              <span class="text-gray-500 ml-2">PIN: <b>${pin}</b></span>
+            </div>
+            ${pin !== MASTER_ADMIN_PIN ? `<button onclick="removeMember('${pin}')" class="text-red-500 font-bold hover:underline">Remove</button>` : ''}
+          </div>
+        `;
+      }
+    }
+
+    async function submitTicket() {
+      const party = document.getElementById('op-party').value.trim();
+      const area = document.getElementById('op-area').value.trim();
+      const reason = document.getElementById('op-reason').value.trim();
+
+      if (!party || !area || !reason) {
+        alert('Sabhi details bharna zaroori hai');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-op');
+      btn.innerText = 'Bheja ja raha hai...';
+      btn.disabled = true;
+
+      data.unshift({
+        id: Date.now(),
+        party, area, reason,
+        opName: currentUser.name,
+        assignedTo: '',
+        instruction: '',
+        feedback: '',
+        status: 'Pending'
+      });
+
+      await syncToCloud();
+
+      document.getElementById('op-party').value = '';
+      document.getElementById('op-area').value = '';
+      document.getElementById('op-reason').value = '';
+      btn.innerText = 'CRM Team Ko Bhejo';
+      btn.disabled = false;
+
+      alert('Alert successfully Cloud me save hua! CRM ko mobile aur PC dono par dikhega.');
+    }
+
+    function showCrmList() {
+      const box = document.getElementById('crm-list');
+      box.innerHTML = data.length === 0 ? '<p class="text-xs text-gray-500">Koi ticket nahi hai.</p>' : '';
+      const fieldBoys = Object.values(USERS).filter(u => u.role === 'field');
+
+      data.forEach(item => {
+        let options = '<option value="">-- Field Boy Select Karein --</option>';
+        fieldBoys.forEach(fb => {
+          options += `<option value="${fb.name}" ${item.assignedTo === fb.name ? 'selected' : ''}>${fb.name}</option>`;
+        });
+
+        box.innerHTML += `
+          <div class="border rounded p-3 text-xs bg-gray-50 space-y-2">
+            <div class="flex justify-between font-bold text-sm">
+              <span>${item.party}</span>
+              <span class="text-blue-600">📍 ${item.area}</span>
+            </div>
+            <p class="text-gray-500 text-[11px]">Flagged by: ${item.opName}</p>
+            <p class="text-red-600 bg-white p-2 border rounded"><b>Problem:</b> ${item.reason}</p>
+            <div>
+              <label class="block font-semibold mb-1">Field Boy Ko Assign Karein:</label>
+              <select onchange="assignBoy(${item.id}, this.value)" class="w-full border p-1.5 rounded bg-white font-medium">
+                ${options}
+              </select>
+              <input type="text" placeholder="Field boy ke liye special note..." value="${item.instruction || ''}" onchange="setInstruction(${item.id}, this.value)" class="w-full border p-1.5 rounded bg-white mt-1">
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    async function assignBoy(id, boy) {
+      const item = data.find(x => x.id === id);
+      if (item) { item.assignedTo = boy; await syncToCloud(); }
+    }
+
+    async function setInstruction(id, note) {
+      const item = data.find(x => x.id === id);
+      if (item) { item.instruction = note; await syncToCloud(); }
+    }
+
+    function showFieldList() {
+      const box = document.getElementById('field-list');
+      const myTasks = data.filter(x => x.assignedTo === currentUser.name);
+      box.innerHTML = myTasks.length === 0 ? '<p class="text-xs text-gray-500">Aapko abhi koi party assign nahi hui hai.</p>' : '';
+      myTasks.forEach(item => {
+        box.innerHTML += `
+          <div class="border rounded p-3 text-xs bg-gray-50 space-y-2">
+            <div class="flex justify-between font-bold text-sm">
+              <span>${item.party}</span>
+              <span class="text-blue-600">📍 ${item.area}</span>
+            </div>
+            <p class="text-red-600 bg-white p-2 border rounded"><b>Reason:</b> ${item.reason}</p>
+            ${item.instruction ? `<p class="text-blue-700 bg-blue-50 p-1.5 rounded"><b>CRM Note:</b> ${item.instruction}</p>` : ''}
+            <div>
+              <label class="block font-semibold mb-1">Dukaan par kya baat hui?:</label>
+              <textarea onchange="setFeedback(${item.id}, this.value)" placeholder="Meeting update likhein..." class="w-full border p-1.5 rounded bg-white" rows="2">${item.feedback || ''}</textarea>
+            </div>
+            <button onclick="finishTask(${item.id})" class="w-full bg-green-600 text-white py-1.5 rounded font-bold">
+              ${item.status === 'Done' ? '✓ Completed' : 'Save & Mark as Done'}
+            </button>
+          </div>
+        `;
+      });
+    }
+
+    async function setFeedback(id, text) {
+      const item = data.find(x => x.id === id);
+      if (item) { item.feedback = text; await syncToCloud(); }
+    }
+
+    async function finishTask(id) {
+      const item = data.find(x => x.id === id);
+      if (item) {
+        item.status = 'Done';
+        await syncToCloud();
+        showFieldList();
+        alert('Status updated on Cloud!');
+      }
+    }
+
+    function showAdminList() {
+      document.getElementById('stat-total').innerText = data.length;
+      document.getElementById('stat-done').innerText = data.filter(x => x.status === 'Done').length;
+      document.getElementById('stat-pending').innerText = data.filter(x => x.status !== 'Done').length;
+
+      const box = document.getElementById('admin-list');
+      box.innerHTML = data.length === 0 ? '<p class="text-xs text-gray-500">Koi trail nahi hai.</p>' : '';
+      data.forEach(item => {
+        box.innerHTML += `
+          <div class="border rounded p-3 text-xs bg-white shadow-sm space-y-1.5">
+            <div class="flex justify-between font-bold text-sm">
+              <span>${item.party} (${item.area})</span>
+              <span class="${item.status === 'Done' ? 'text-green-600' : 'text-orange-500'} font-bold">${item.status}</span>
+            </div>
+            <div class="pl-2 border-l-2 border-blue-500 text-gray-700 space-y-1">
+              <p>1. <b>Operator:</b> ${item.opName} flagged (Reason: ${item.reason})</p>
+              <p>2. <b>CRM:</b> Assigned to ${item.assignedTo || 'Pending'} ${item.instruction ? `(Note: "${item.instruction}")` : ''}</p>
+              <p>3. <b>Field Boy Update:</b> ${item.feedback || 'Visit pending'}</p>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Auto-sync data every 10 seconds in background
+    setInterval(() => {
+      if (currentUser) loadAllCloudData();
+    }, 10000);
+
+    // Initial load on page open
+    loadAllCloudData();
+  </script>
+</body>
+</html>
