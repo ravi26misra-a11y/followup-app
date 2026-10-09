@@ -8,27 +8,22 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @keyframes pulseGlow {
-      0%, 100% { opacity: 0.4; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.05); }
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
     }
-    .glow-bg {
-      animation: pulseGlow 6s ease-in-out infinite;
-    }
+    .glow-bg { animation: pulseGlow 6s ease-in-out infinite; }
   </style>
 </head>
 <body class="bg-slate-950 min-h-screen font-sans flex items-center justify-center p-4 relative overflow-hidden select-none">
 
-  <!-- Glowing background elements for premium look -->
-  <div class="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl glow-bg pointer-events-none"></div>
-  <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/30 rounded-full blur-3xl glow-bg pointer-events-none" style="animation-delay: 3s;"></div>
+  <div class="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/25 rounded-full blur-3xl glow-bg pointer-events-none"></div>
+  <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/25 rounded-full blur-3xl glow-bg pointer-events-none"></div>
 
-  <!-- MAIN APP CONTAINER -->
+  <!-- MAIN CARD CONTAINER -->
   <div class="w-full max-w-md bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl overflow-hidden border border-slate-700/60 min-h-[580px] flex flex-col justify-between relative z-10">
 
-    <!-- ==================== 1. WELCOME & LOGIN SCREEN ==================== -->
+    <!-- LOGIN SCREEN -->
     <div id="screen-login" class="p-8 flex flex-col justify-between flex-grow">
-      
-      <!-- Top Branding -->
       <div class="text-center pt-4">
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white shadow-xl shadow-blue-500/30 mb-4 border border-white/20">
           <i class="fa-solid fa-layer-group text-3xl"></i>
@@ -37,7 +32,6 @@
         <p class="text-xs text-slate-400 mt-1 font-medium">B2B Order Recovery & Field Operations</p>
       </div>
 
-      <!-- PIN Input Area -->
       <div class="my-8 space-y-6">
         <div class="text-center">
           <span class="text-[11px] font-bold uppercase tracking-wider text-blue-400 bg-blue-950/80 border border-blue-800/60 px-3.5 py-1.5 rounded-full">
@@ -57,20 +51,18 @@
         </button>
       </div>
 
-      <!-- Clean Footer (No Hint, No PIN shown) -->
       <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-3.5 text-center">
         <div class="flex items-center justify-center space-x-2 text-slate-400 text-xs font-medium">
           <i class="fa-solid fa-lock text-slate-500"></i>
           <span>Authorized Staff Access Only</span>
         </div>
-        <p class="text-[11px] text-slate-500 mt-0.5">Apna assigned 4-digit PIN enter karke dashboard kholein</p>
+        <p class="text-[11px] text-slate-500 mt-0.5">Apna assigned 4-digit PIN enter karein</p>
       </div>
     </div>
 
-    <!-- ==================== 2. WORKSPACE (AFTER LOGIN) ==================== -->
+    <!-- WORKSPACE (AFTER LOGIN) -->
     <div id="screen-app" class="hidden flex flex-col flex-grow justify-between bg-slate-900 text-slate-100">
       
-      <!-- Top Header -->
       <header class="bg-slate-800/90 border-b border-slate-700/80 p-4 flex justify-between items-center">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-lg border border-blue-500/30">
@@ -82,7 +74,7 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <button onclick="loadAllCloudData()" title="Reload Cloud Data" class="p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs transition">
+          <button onclick="loadAllData()" title="Reload Data" class="p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs transition">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
           <button onclick="handleLogout()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold shadow transition flex items-center space-x-1 text-white">
@@ -96,7 +88,7 @@
       <div id="view-op" class="p-5 space-y-4 hidden flex-grow overflow-y-auto">
         <div class="bg-blue-950/40 border border-blue-800/50 p-3 rounded-2xl text-xs text-blue-200">
           <p class="font-bold text-blue-300">Order Attention Alert</p>
-          <p class="text-[11px] mt-0.5">Jis party ka order drop ya band hua hai, unki details bhej kar ground team ko alert karein.</p>
+          <p class="text-[11px] mt-0.5">Jis party ka order drop ya band hua hai, details bhej kar ground team ko alert karein.</p>
         </div>
 
         <div class="space-y-3">
@@ -197,49 +189,55 @@
 
   <script>
     const MASTER_ADMIN_PIN = '2619';
+    const STORAGE_KEY_USERS = 'followup_permanent_users';
+    const STORAGE_KEY_TICKETS = 'followup_permanent_tickets';
+
     let USERS = { '2619': { name: 'Owner (Master Admin)', role: 'admin' } };
     let currentUser = null;
     let data = [];
 
-    async function loadAllCloudData() {
-      try {
-        const cachedUsers = localStorage.getItem('team_users_v4');
-        if (cachedUsers) USERS = JSON.parse(cachedUsers);
-
-        const cachedTickets = localStorage.getItem('party_tickets_v4');
-        if (cachedTickets) data = JSON.parse(cachedTickets);
-
-        const res = await fetch('https://kvdb.io/S3Vz8N2eG8gCq8J2sL8Nq9/sharda_followup_data_v4');
-        if (res.ok) {
-          const cloudPayload = await res.json();
-          if (cloudPayload.users) USERS = { ...USERS, ...cloudPayload.users };
-          if (cloudPayload.tickets) data = cloudPayload.tickets;
-          localStorage.setItem('team_users_v4', JSON.stringify(USERS));
-          localStorage.setItem('party_tickets_v4', JSON.stringify(data));
+    // Local + Permanent Storage sync
+    function loadAllData() {
+      // 1. Check all previous backups to never lose previously added team
+      const keysToCheck = [STORAGE_KEY_USERS, 'team_users_v3', 'team_users_v4', 'team_users_v2', 'team_users'];
+      for (const k of keysToCheck) {
+        const stored = localStorage.getItem(k);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            USERS = { ...USERS, ...parsed };
+          } catch(e) {}
         }
-      } catch (e) {
-        console.log('Local cache active', e);
       }
+
+      const ticketKeys = [STORAGE_KEY_TICKETS, 'party_tickets_v3', 'party_tickets_v4', 'party_tickets_v2', 'party_tickets'];
+      for (const tk of ticketKeys) {
+        const storedT = localStorage.getItem(tk);
+        if (storedT) {
+          try {
+            const parsedT = JSON.parse(storedT);
+            if (Array.isArray(parsedT) && parsedT.length > data.length) {
+              data = parsedT;
+            }
+          } catch(e) {}
+        }
+      }
+
+      saveData();
       refreshCurrentView();
     }
 
-    async function syncToCloud() {
-      localStorage.setItem('team_users_v4', JSON.stringify(USERS));
-      localStorage.setItem('party_tickets_v4', JSON.stringify(data));
-      try {
-        await fetch('https://kvdb.io/S3Vz8N2eG8gCq8J2sL8Nq9/sharda_followup_data_v4', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ users: USERS, tickets: data })
-        });
-      } catch (err) {
-        console.error('Sync fail:', err);
-      }
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(USERS));
+      localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(data));
+      // Backup keys
+      localStorage.setItem('team_users_v3', JSON.stringify(USERS));
+      localStorage.setItem('party_tickets_v3', JSON.stringify(data));
     }
 
-    async function handleLogin() {
+    function handleLogin() {
       const pin = document.getElementById('login-pin').value.trim();
-      await loadAllCloudData();
+      loadAllData();
 
       if (!USERS[pin]) {
         alert('Galat PIN! Kripya sahi PIN enter karein.');
@@ -279,7 +277,7 @@
       document.getElementById('screen-login').classList.remove('hidden');
     }
 
-    async function addNewMember() {
+    function addNewMember() {
       const name = document.getElementById('new-user-name').value.trim();
       const role = document.getElementById('new-user-role').value;
       const pin = document.getElementById('new-user-pin').value.trim();
@@ -294,7 +292,7 @@
       }
 
       USERS[pin] = { name, role };
-      await syncToCloud();
+      saveData();
 
       document.getElementById('new-user-name').value = '';
       document.getElementById('new-user-pin').value = '';
@@ -302,11 +300,11 @@
       alert(`${name} ko add kar diya gaya! PIN: ${pin}`);
     }
 
-    async function removeMember(pin) {
+    function removeMember(pin) {
       if (pin === MASTER_ADMIN_PIN) return;
       if (confirm(`Remove ${USERS[pin].name}?`)) {
         delete USERS[pin];
-        await syncToCloud();
+        saveData();
         renderTeamList();
       }
     }
@@ -330,7 +328,7 @@
       }
     }
 
-    async function submitTicket() {
+    function submitTicket() {
       const party = document.getElementById('op-party').value.trim();
       const area = document.getElementById('op-area').value.trim();
       const reason = document.getElementById('op-reason').value.trim();
@@ -339,10 +337,6 @@
         alert('Sabhi details bharna zaroori hai');
         return;
       }
-
-      const btn = document.getElementById('btn-submit-op');
-      btn.innerText = 'Bheja ja raha hai...';
-      btn.disabled = true;
 
       data.unshift({
         id: Date.now(),
@@ -354,14 +348,11 @@
         status: 'Pending'
       });
 
-      await syncToCloud();
+      saveData();
 
       document.getElementById('op-party').value = '';
       document.getElementById('op-area').value = '';
       document.getElementById('op-reason').value = '';
-      btn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i><span>CRM Team Ko Bhejo</span>';
-      btn.disabled = false;
-
       alert('Alert successfully bheja gaya!');
     }
 
@@ -398,14 +389,14 @@
       });
     }
 
-    async function assignBoy(id, boy) {
+    function assignBoy(id, boy) {
       const item = data.find(x => x.id === id);
-      if (item) { item.assignedTo = boy; await syncToCloud(); }
+      if (item) { item.assignedTo = boy; saveData(); }
     }
 
-    async function setInstruction(id, note) {
+    function setInstruction(id, note) {
       const item = data.find(x => x.id === id);
-      if (item) { item.instruction = note; await syncToCloud(); }
+      if (item) { item.instruction = note; saveData(); }
     }
 
     function showFieldList() {
@@ -433,16 +424,16 @@
       });
     }
 
-    async function setFeedback(id, text) {
+    function setFeedback(id, text) {
       const item = data.find(x => x.id === id);
-      if (item) { item.feedback = text; await syncToCloud(); }
+      if (item) { item.feedback = text; saveData(); }
     }
 
-    async function finishTask(id) {
+    function finishTask(id) {
       const item = data.find(x => x.id === id);
       if (item) {
         item.status = 'Done';
-        await syncToCloud();
+        saveData();
         showFieldList();
         alert('Visit report save ho gayi!');
       }
@@ -472,8 +463,8 @@
       });
     }
 
-    setInterval(() => { if (currentUser) loadAllCloudData(); }, 12000);
-    loadAllCloudData();
+    // Load and recover all previously saved members on start
+    loadAllData();
   </script>
 </body>
 </html>
