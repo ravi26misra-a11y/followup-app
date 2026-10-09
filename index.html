@@ -63,7 +63,6 @@
     <!-- 2. WORKSPACE -->
     <div id="screen-app" class="hidden flex flex-col h-full flex-grow bg-slate-900 text-slate-100 overflow-hidden">
       
-      <!-- Top Sticky Header -->
       <header class="bg-slate-800/95 border-b border-slate-700 p-4 flex justify-between items-center shrink-0 z-20">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-lg border border-blue-500/30">
@@ -126,7 +125,6 @@
 
       <!-- VIEW: MASTER ADMIN -->
       <div id="view-admin" class="p-4 space-y-4 hidden flex-grow overflow-y-auto pb-32">
-        <!-- Stats -->
         <div class="grid grid-cols-3 gap-2 text-center text-xs">
           <div class="bg-slate-800 p-3 rounded-2xl border border-slate-700">
             <span class="font-black text-xl text-white" id="stat-total">0</span>
@@ -142,7 +140,6 @@
           </div>
         </div>
 
-        <!-- Add Staff -->
         <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-3 text-xs">
           <h3 class="font-bold text-white flex items-center space-x-1.5 text-sm">
             <i class="fa-solid fa-user-plus text-blue-400"></i>
@@ -169,7 +166,6 @@
           <button onclick="addNewMember()" id="btn-add-member" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold transition">Team Me Add Karein</button>
         </div>
 
-        <!-- Team List -->
         <div>
           <h3 class="font-bold text-slate-300 text-xs mb-1.5">Active Team Members</h3>
           <div id="team-members-list" class="space-y-1.5 text-xs"></div>
@@ -177,7 +173,6 @@
 
         <hr class="border-slate-800">
 
-        <!-- Trail List -->
         <div>
           <h3 class="font-bold text-slate-300 text-xs mb-2">Customer Follow-up Trail</h3>
           <div id="admin-list" class="space-y-3"></div>
@@ -189,15 +184,20 @@
   </div>
 
   <script>
-    // AAPKI GOOGLE SCRIPT URL DIRECT CONNECTED HAI
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxeyAtH5IBnkPfDMdzyzEaSqJYbBNk6_9BfpHmnzsA64YVpLiCwJKXmzhQYuZFn8PQj/exec";
-
     const MASTER_ADMIN_PIN = '2619';
+
+    // Fallback storage taaki offline ya connection drop hone par bhi login na ruke
     let USERS = { '2619': { name: 'Owner (Master Admin)', role: 'admin' } };
+    try {
+      const savedUsers = localStorage.getItem('local_users_cache');
+      if (savedUsers) USERS = { ...USERS, ...JSON.parse(savedUsers) };
+      const savedTickets = localStorage.getItem('local_tickets_cache');
+      if (savedTickets) data = JSON.parse(savedTickets);
+    } catch(e) {}
+
     let currentUser = null;
     let data = [];
-
-    // Draft storage to prevent text loss while typing
     const crmDrafts = {};
     const fieldDrafts = {};
 
@@ -209,15 +209,19 @@
     }
 
     async function fetchSheetData(force = false) {
-      // Agar user type kar raha hai aur force refresh nahi hai to screen redraw na karein
       if (!force && isUserTyping()) return;
-
       try {
         const res = await fetch(`${SCRIPT_URL}?action=getData`);
         if (res.ok) {
           const json = await res.json();
-          if (json.users) USERS = { ...USERS, ...json.users };
-          if (json.tickets) data = json.tickets.reverse();
+          if (json.users) {
+            USERS = { ...USERS, ...json.users };
+            localStorage.setItem('local_users_cache', JSON.stringify(USERS));
+          }
+          if (json.tickets) {
+            data = json.tickets.reverse();
+            localStorage.setItem('local_tickets_cache', JSON.stringify(data));
+          }
           refreshCurrentView();
         }
       } catch (err) {
@@ -240,18 +244,15 @@
       }
     }
 
-    async function handleLogin() {
+    // INSTANT LOGIN: Sheet ka intezar kiye bina turant open hoga
+    function handleLogin() {
       const pin = document.getElementById('login-pin').value.trim();
-      const btn = document.getElementById('btn-login');
-      btn.innerText = 'Connecting...';
-
-      await fetchSheetData(true);
-      btn.innerText = 'Login Karein';
 
       if (!USERS[pin]) {
         alert('Galat PIN! Kripya sahi PIN enter karein.');
         return;
       }
+
       currentUser = USERS[pin];
       document.getElementById('screen-login').classList.add('hidden');
       document.getElementById('screen-app').classList.remove('hidden');
@@ -267,6 +268,8 @@
       if (currentUser.role === 'admin') document.getElementById('view-admin').classList.remove('hidden');
 
       refreshCurrentView();
+      // Background me latest updates pull karega
+      fetchSheetData(true);
     }
 
     function refreshCurrentView() {
@@ -297,19 +300,21 @@
       }
 
       USERS[pin] = { name, role };
+      localStorage.setItem('local_users_cache', JSON.stringify(USERS));
       renderTeamList();
-
-      await postSheetData({ action: "addUser", name, role, pin });
 
       document.getElementById('new-user-name').value = '';
       document.getElementById('new-user-pin').value = '';
-      alert(`${name} ko Google Sheet me add kar diya gaya!`);
+      alert(`${name} ko add kar diya gaya!`);
+
+      await postSheetData({ action: "addUser", name, role, pin });
     }
 
     async function removeMember(pin) {
       if (pin === MASTER_ADMIN_PIN) return;
       if (confirm(`Remove ${USERS[pin].name}?`)) {
         delete USERS[pin];
+        localStorage.setItem('local_users_cache', JSON.stringify(USERS));
         renderTeamList();
         await postSheetData({ action: "removeUser", pin });
       }
@@ -354,20 +359,18 @@
         opName: currentUser.name
       };
 
-      await postSheetData({ action: "addTicket", ticket: newTicket });
-
       document.getElementById('op-party').value = '';
       document.getElementById('op-area').value = '';
       document.getElementById('op-reason').value = '';
       btn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i><span>CRM Team Ko Bhejo</span>';
       btn.disabled = false;
 
-      alert('Alert successfully bhej diya gaya!');
+      alert('Alert bhej diya gaya!');
+      await postSheetData({ action: "addTicket", ticket: newTicket });
       fetchSheetData(true);
     }
 
     function showCrmList() {
-      // Capture live inputs before rendering so typing is never lost
       data.forEach(item => {
         const inp = document.getElementById(`note-fb-${item.id}`);
         if (inp) crmDrafts[item.id] = inp.value;
@@ -419,3 +422,88 @@
     }
 
     async function commitAssignment(id) {
+      const selectedBoy = document.getElementById(`select-fb-${id}`).value;
+      const note = document.getElementById(`note-fb-${id}`).value.trim();
+
+      if (!selectedBoy) {
+        alert('Kripya pehle dropdown se ek Field Boy select karein.');
+        return;
+      }
+
+      delete crmDrafts[id];
+      alert(`Party ${selectedBoy} ko assign kar di gayi!`);
+      await postSheetData({ action: "assignTicket", id, assignedTo: selectedBoy, instruction: note });
+      fetchSheetData(true);
+    }
+
+    function showFieldList() {
+      data.forEach(item => {
+        const txt = document.getElementById(`feedback-${item.id}`);
+        if (txt) fieldDrafts[item.id] = txt.value;
+      });
+
+      const box = document.getElementById('field-list');
+      const myTasks = data.filter(x => x.assignedTo === currentUser.name);
+      box.innerHTML = myTasks.length === 0 ? '<p class="text-xs text-slate-400 p-4 text-center">Aapko koi party assign nahi hai.</p>' : '';
+      
+      myTasks.forEach(item => {
+        const curFeedback = fieldDrafts[item.id] !== undefined ? fieldDrafts[item.id] : (item.feedback || '');
+
+        box.innerHTML += `
+          <div class="border border-slate-700 rounded-2xl p-3.5 text-xs bg-slate-800/80 shadow-sm space-y-2.5">
+            <div class="flex justify-between font-bold text-sm">
+              <span class="text-white">${item.party}</span>
+              <span class="text-blue-400">📍 ${item.area}</span>
+            </div>
+            <p class="text-rose-300 bg-rose-950/40 border border-rose-800/50 p-2.5 rounded-xl"><b>Problem:</b> ${item.reason}</p>
+            ${item.instruction ? `<p class="text-blue-300 bg-blue-950/40 border border-blue-800/50 p-2.5 rounded-xl font-medium"><b>CRM Note:</b> ${item.instruction}</p>` : ''}
+            <div>
+              <label class="block font-semibold mb-1 text-slate-300">Dukaan par kya baat hui?:</label>
+              <textarea id="feedback-${item.id}" oninput="fieldDrafts['${item.id}'] = this.value" placeholder="Meeting update likhein..." class="w-full bg-slate-900 border border-slate-700 p-2 rounded-xl text-white outline-none" rows="2">${curFeedback}</textarea>
+            </div>
+            <button onclick="finishTask('${item.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold transition">
+              ${item.status === 'Done' ? '✓ Completed' : 'Save & Mark as Done'}
+            </button>
+          </div>
+        `;
+      });
+    }
+
+    async function finishTask(id) {
+      const fb = document.getElementById(`feedback-${id}`).value.trim();
+      delete fieldDrafts[id];
+      alert('Visit update save ho gayi!');
+      await postSheetData({ action: "finishTicket", id, feedback: fb });
+      fetchSheetData(true);
+    }
+
+    function showAdminList() {
+      document.getElementById('stat-total').innerText = data.length;
+      document.getElementById('stat-done').innerText = data.filter(x => x.status === 'Done').length;
+      document.getElementById('stat-pending').innerText = data.filter(x => x.status !== 'Done').length;
+
+      const box = document.getElementById('admin-list');
+      box.innerHTML = data.length === 0 ? '<p class="text-xs text-slate-400 p-4 text-center">Koi trail nahi hai.</p>' : '';
+      data.forEach(item => {
+        box.innerHTML += `
+          <div class="border border-slate-700 rounded-2xl p-3.5 text-xs bg-slate-800/80 shadow-sm space-y-2">
+            <div class="flex justify-between font-bold text-sm">
+              <span class="text-white">${item.party} (${item.area})</span>
+              <span class="${item.status === 'Done' ? 'text-emerald-400 bg-emerald-950/60 border border-emerald-800' : 'text-amber-400 bg-amber-950/60 border border-amber-800'} px-2 py-0.5 rounded-full text-[11px] font-bold">${item.status}</span>
+            </div>
+            <div class="pl-2.5 border-l-2 border-blue-500 text-slate-300 space-y-1">
+              <p>1. <b>Operator:</b> ${item.opName} flagged (Reason: ${item.reason})</p>
+              <p>2. <b>CRM:</b> Assigned to ${item.assignedTo || 'Pending'} ${item.instruction ? `(Note: "${item.instruction}")` : ''}</p>
+              <p>3. <b>Field Boy Update:</b> ${item.feedback || 'Visit pending'}</p>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Auto-pull background data
+    setInterval(() => fetchSheetData(false), 15000);
+    fetchSheetData(true);
+  </script>
+</body>
+</html>
